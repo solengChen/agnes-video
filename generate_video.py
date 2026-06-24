@@ -61,25 +61,24 @@ def generate_video(prompt, num_frames=121, frame_rate=24, api_key=None, images=N
     duration = calculate_duration(num_frames, frame_rate)
     
     # 准备命令
-    cmd = ['agnes', 'video', 'generate']
+    cmd = 'agnes video generate'
     
     # 添加 prompt
-    cmd.extend(['--prompt', prompt])
+    cmd += f' --prompt "{prompt}"'
     
     # 添加帧数和帧率
-    cmd.extend(['--num-frames', str(num_frames)])
-    cmd.extend(['--frame-rate', str(frame_rate)])
+    cmd += f' --num-frames {num_frames}'
+    cmd += f' --frame-rate {frame_rate}'
     
     # 如果有 API Key
     if api_key:
-        cmd.extend(['--api-key', api_key])
+        cmd += f' --api-key "{api_key}"'
     
     # 如果是关键帧模式
     if mode == 'keyframes' and images:
-        cmd.append('--mode')
-        cmd.append('keyframes')
+        cmd += f' --mode keyframes'
         for img in images:
-            cmd.extend(['--image', img])
+            cmd += f' --image "{img}"'
     
     # 执行命令
     try:
@@ -87,7 +86,8 @@ def generate_video(prompt, num_frames=121, frame_rate=24, api_key=None, images=N
             cmd,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            shell=True
         )
         
         if result.returncode == 0:
@@ -122,6 +122,52 @@ def generate_video(prompt, num_frames=121, frame_rate=24, api_key=None, images=N
             'error': str(e),
             'suggestion': '请检查系统配置'
         }
+
+
+def check_agnes_available():
+    """检查 Agnes CLI 是否可用"""
+    import os
+    # 尝试多种方式
+    commands = ['agnes', 'agnes.cmd']
+    
+    # Windows 特定路径
+    if os.name == 'nt':
+        npm_global = os.path.join(os.environ.get('APPDATA', ''), 'npm')
+        if os.path.exists(npm_global):
+            agnes_exe = os.path.join(npm_global, 'agnes.cmd')
+            if os.path.exists(agnes_exe):
+                commands.insert(0, agnes_exe)
+    
+    for cmd in commands:
+        try:
+            import subprocess
+            result = subprocess.run(
+                [cmd, '--version'],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                shell=False
+            )
+            if result.returncode == 0:
+                return True
+        except:
+            continue
+    
+    # 尝试 shell 方式
+    try:
+        import subprocess
+        result = subprocess.run(
+            'agnes --version',
+            capture_output=True,
+            text=True,
+            timeout=5,
+            shell=True
+        )
+        return result.returncode == 0
+    except:
+        return False
+    
+    return False
 
 
 def parse_agnes_output(stdout, prompt, num_frames, frame_rate, duration, mode):
