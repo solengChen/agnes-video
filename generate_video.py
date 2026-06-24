@@ -18,11 +18,13 @@ from pathlib import Path
 def validate_num_frames(num_frames):
     """
     验证帧数是否符合要求
-    必须是 16 的倍数 + 1
+    必须是 8n + 1，且 <= 441
     """
+    if num_frames > 441:
+        return False
     if num_frames < 1:
         return False
-    return (num_frames - 1) % 16 == 0
+    return (num_frames - 1) % 8 == 0
 
 
 def calculate_duration(num_frames, frame_rate):
@@ -97,6 +99,61 @@ def generate_video(prompt, num_frames=121, frame_rate=24, api_key=None, images=N
         else:
             # 解析错误
             error_output = result.stderr.strip()
+            
+            # 检查是否任务已提交成功（即使有后续错误）
+            if 'Task submitted:' in error_output or 'Task submitted' in error_output:
+                # 尝试从输出中提取 video_id
+                video_id = None
+                task_id = None
+                
+                for line in error_output.split('\n'):
+                    if 'video_id:' in line or 'video_' in line:
+                        # 提取 video_id
+                        import re
+                        match = re.search(r'video_[a-zA-Z0-9]+', line)
+                        if match:
+                            video_id = match.group(0)
+                    if 'Task submitted:' in line or 'Task submitted' in line:
+                        # 提取 task_id
+                        import re
+                        match = re.search(r'video_[a-zA-Z0-9]+', line)
+                        if match:
+                            task_id = match.group(0)
+                
+                # 尝试解析 JSON 状态
+                status = None
+                progress = None
+                video_url = None
+                
+                for line in error_output.split('\n'):
+                    if line.strip().startswith('{'):
+                        try:
+                            json_data = json.loads(line)
+                            if 'error' in json_data:
+                                # 这是一个错误响应，检查是否是速率限制
+                                error_info = json_data.get('error', {})
+                                if error_info.get('subtype') == 'rate_limited':
+                                    # 速率限制，但任务已提交
+                                    status = 'submitted'
+                                    progress = 'unknown'
+                        except:
+                            pass
+                    elif 'Status:' in line:
+                        status = line.split('Status:')[1].strip()
+                    elif 'Progress:' in line:
+                        progress = line.split('Progress:')[1].strip()
+                
+                return {
+                    'success': True,
+                    'message': '视频生成任务已提交',
+                    'video_id': video_id,
+                    'task_id': task_id,
+                    'status': status,
+                    'progress': progress,
+                    'note': '视频正在生成中，遇到了 API 速率限制，请稍后查询状态',
+                    'raw_output': error_output
+                }
+            
             return {
                 'success': False,
                 'error': '视频生成任务创建失败',
