@@ -32,9 +32,12 @@ def check_saved_key():
             ['agnes', 'key', 'status'],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
+            shell=True
         )
-        if result.returncode == 0 and 'API Key configured' in result.stdout:
+        output = result.stdout + result.stderr
+        # 检查多种可能的成功状态
+        if result.returncode == 0 and any(status in output for status in ['configured', 'API Key configured', '"status": "configured"']):
             return {'source': 'saved', 'configured': True}
         return {'source': 'saved', 'configured': False}
     except (subprocess.TimeoutExpired, FileNotFoundError):
