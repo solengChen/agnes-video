@@ -130,7 +130,7 @@ class AgnesVideoManager:
         """
         # 检查系统状态
         if not self.status['ready']:
-            print("❌ 系统未就绪，无法生成视频")
+            print("[X] 系统未就绪，无法生成视频")
             for issue in self.status['issues']:
                 if issue['type'] == 'missing_api_key':
                     self.guide_api_key_setup()
@@ -138,18 +138,18 @@ class AgnesVideoManager:
             
             return {'success': False, 'error': '系统未就绪'}
         
-        print("🎬 开始生成视频...")
+        print("[*] 开始生成视频...")
         print(f"   描述: {prompt}")
         print(f"   帧数: {num_frames}")
         print(f"   帧率: {frame_rate} fps")
         print(f"   时长: {calculate_duration(num_frames, frame_rate):.2f} 秒")
         print()
         
-        # 验证帧数
+        # 验证帧数（必须是 8n+1 且 <= 441）
         if not validate_num_frames(num_frames):
-            valid_values = [1, 17, 33, 49, 65, 81, 97, 113, 121, 241, 361]
+            valid_values = [1, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121, 129, 137, 145, 153, 161, 169, 177, 185, 193, 201, 209, 217, 225, 233, 241, 249, 257, 265, 273, 281, 289, 297, 305, 313, 321, 329, 337, 345, 353, 361, 369, 377, 385, 393, 401, 409, 417, 425, 433, 441]
             closest = min([v for v in valid_values if v >= num_frames], default=121)
-            print(f"⚠️  帧数不符合要求（必须是 16 的倍数 + 1）")
+            print(f"[!] 帧数不符合要求（必须是 8 的倍数 + 1，且 <= 441）")
             print(f"   当前: {num_frames}")
             print(f"   建议: {closest}")
             return {
@@ -169,18 +169,18 @@ class AgnesVideoManager:
         )
         
         if not result.get('success'):
-            print("❌ 视频生成任务创建失败")
+            print("[X] 视频生成任务创建失败")
             print(f"   错误: {result.get('error', 'Unknown error')}")
             return result
         
-        print("✅ 视频生成任务已提交")
+        print("[+] 视频生成任务已提交")
         print(f"   Video ID: {result.get('video_id', 'N/A')}")
         print(f"   Task ID: {result.get('task_id', 'N/A')}")
         print()
         
         # 自动查询状态
         if auto_check and result.get('video_id'):
-            print("⏳ 等待视频生成...")
+            print("[*] 等待视频生成...")
             print("   (每 5 秒查询一次状态)")
             print()
             
@@ -295,8 +295,7 @@ def main():
             auto_check=not args.no_auto_check
         )
         
-        print()
-        print("📊 完整结果:")
+        print("\n[>] 完整结果:")
         print(json.dumps(result, ensure_ascii=False, indent=2))
         
         return 0 if result.get('success') else 1
